@@ -1,0 +1,9 @@
+{
+  "name": "nanalseoga-site",
+  "private": true,
+  "type": "module",
+  "description": "나날서가 홈페이지 · 카카오/네이버/구글 로그인",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.1"
+  }
+}

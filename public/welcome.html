@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>가입하기 · 나날서가</title>
+<meta name="description" content="나날서가 · 자서전 도서관">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono&family=Nanum+Pen+Script&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="top"><div class="in"><a class="brand" href="./" aria-label="나날서가 처음으로"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="46" cy="15" r="11" fill="#E0702F"/><path d="M22 8h18a4 4 0 0 1 4 4v46l-13-8-13 8V12a4 4 0 0 1 4-4z" fill="#34507A"/><rect x="18" y="18" width="26" height="2.2" fill="#F5F1E8"/></svg><span><b>나날서가</b><small>자서전 도서관</small></span></a><a class="btn sm" href="./">홈으로</a></div></header>
+<main>
+
+<section style="display:flex;flex-direction:column;gap:10px">
+  <span class="hand">반가워요!</span>
+  <h1>마지막 한 단계예요</h1>
+  <p class="sub" id="lead">약속 몇 가지만 확인하면 가입이 끝나요.</p>
+</section>
+<div id="msg" role="status" aria-live="polite" hidden></div>
+<form class="card" id="f" novalidate>
+  <label class="field" for="w_name">책에 쓸 이름 (필명도 괜찮아요)<input id="w_name" name="name" type="text" maxlength="30" autocomplete="name" required></label>
+  <div class="agree" role="group" aria-label="약관 동의">
+    <label for="a_all"><input type="checkbox" id="a_all"><span class="t">모두 동의해요</span></label>
+    <label for="a_terms"><input type="checkbox" id="a_terms" data-req="1"><span class="tag">필수</span><span class="t">나날서가 이용약관</span><a href="terms.html" target="_blank" rel="noopener">보기</a></label>
+    <label for="a_privacy"><input type="checkbox" id="a_privacy" data-req="1"><span class="tag">필수</span><span class="t">개인정보 수집·이용 및 국외 이전</span><a href="privacy.html" target="_blank" rel="noopener">보기</a></label>
+    <label for="a_age"><input type="checkbox" id="a_age" data-req="1"><span class="tag">필수</span><span class="t">만 14세 이상이에요</span></label>
+    <label for="a_notice"><input type="checkbox" id="a_notice"><span class="tag opt">선택</span><span class="t">출시·새 소식 알림 받기</span></label>
+  </div>
+  <button class="btn pri" type="submit" id="go" disabled>필수 항목에 동의해 주세요</button>
+  <p class="sub" style="font-size:.88rem">선택 항목은 동의하지 않아도 가입할 수 있고, 내 서재에서 언제든 바꿀 수 있어요.</p>
+</form>
+
+</main>
+<footer><a href="terms.html">이용약관</a><a href="privacy.html"><b>개인정보 처리방침</b></a><br>© 2026 나날서가</footer>
+<script>
+const PROV = {kakao:"카카오", naver:"네이버", google:"Google"};
+async function api(path, opt){
+  const r = await fetch(path, Object.assign({credentials:"same-origin", headers:{"content-type":"application/json"}}, opt || {}));
+  let d = {}; try{ d = await r.json(); }catch(_){}
+  if(!r.ok) throw Object.assign(new Error(d.message || "요청이 처리되지 않았어요"), {status:r.status, data:d});
+  return d;
+}
+function lastProvider(){ try{ return localStorage.getItem("nanal-last-provider") || ""; }catch(_){ return ""; } }
+function setLastProvider(p){ try{ localStorage.setItem("nanal-last-provider", p); }catch(_){} }
+function fmtDate(iso){ if(!iso) return ""; const d = new Date(iso); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`; }
+
+const f = document.getElementById("f"), go = document.getElementById("go"), box = document.getElementById("msg");
+const req = [...f.querySelectorAll("[data-req]")], all = document.getElementById("a_all"), boxes = [...f.querySelectorAll(".agree input:not(#a_all)")];
+function sync(){ const ok = req.every(x => x.checked); all.checked = boxes.every(x => x.checked); go.disabled = !ok; go.textContent = ok ? "동의하고 가입하기" : "필수 항목에 동의해 주세요"; }
+all.addEventListener("change", () => { boxes.forEach(x => x.checked = all.checked); sync(); });
+boxes.forEach(x => x.addEventListener("change", sync));
+function say(kind, text){ box.className = "notice " + kind; box.textContent = text; box.hidden = false; }
+api("api/me").then(d => {
+  if(!d.user){ location.replace("login.html"); return; }
+  if(!d.user.pending){ location.replace("my.html"); return; }
+  document.getElementById("w_name").value = d.user.name || "";
+  document.getElementById("lead").textContent = `${PROV[d.user.provider] || ""} 계정으로 오셨어요. 약속 몇 가지만 확인하면 가입이 끝나요.`;
+}).catch(() => say("err", "지금은 가입을 진행할 수 없어요. 잠시 뒤 다시 시도해 주세요."));
+f.addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = document.getElementById("w_name").value.trim();
+  if(!name){ say("err", "책에 쓸 이름을 적어 주세요."); document.getElementById("w_name").focus(); return; }
+  go.disabled = true; go.textContent = "가입하는 중…";
+  try{
+    const ck = id => document.getElementById(id).checked;
+    await api("api/signup", {method:"POST", body:JSON.stringify({name, terms:ck("a_terms"), privacy:ck("a_privacy"), age:ck("a_age"), notice:ck("a_notice")})});
+    location.replace("my.html?welcome=1");
+  }catch(err){
+    if(err.status === 401){ say("err", "로그인 시간이 지났어요. 다시 로그인해 주세요."); setTimeout(() => location.replace("login.html?error=state"), 1600); return; }
+    say("err", err.message); sync();
+  }
+});
+</script>
+</body>
+</html>
